@@ -1,9 +1,9 @@
-seeds="1 2"
+seeds="0"
 im=2+_8
 feat="2+_8_rpr"
 type_im=2+
-tmax=0 #
-tmask=0.3 # Using an average value!
+tmax=0.15 #
+tmask=0.495 # Using an average value!
 kpatches=5
 channel_name=blue
 c_n=b
