@@ -90,91 +90,74 @@ if not os.path.exists(output_dir + "/idx_training_pixels"):
 
 
 big_target_vector = np.load(big_target_path) 
-big_im = np.zeros((1000,1000,3)) #cambiar esto!!
 
 #big_scaled_feat_matrix, feat_names, big_feat_matrix = exp_f.get_features(bigDir)
 big_scaled_feat_matrix = np.load(feat_path)
-b_rows, b_cols, b_dim = big_im.shape
-n_pixels = b_rows * b_cols
+big_im_shape = (image_size,image_size,3)
 
 # GET CHANNEL FOR GS GENERATION
 channel = np.load(channel_path)
 channel_im = np.reshape(channel,(image_size,image_size))
 plt.imsave(output_dir + channel_name + "_channel.png", channel_im, cmap="gray")
 
-# Revisar si es channel o 1-channel
+#
+print("channel.shape",channel.shape)
+ 
 channel_mask = channel <= threshold
-mask_num = channel[channel_mask]
-print("mask_num", mask_num)
 mask_im = np.reshape(channel_mask, (image_size, image_size))
 plt.imsave(output_dir + channel_name + "_channel_mask_thres_" + str(threshold) + ".png", mask_im, cmap="gray")
 
-##############################
-# GENERATE 2D HALTON PATCHES ([0,1] RANGE)
-# ACCORDING TO SEED
+# Generate 2D Halton points in [0,1] range
+# for a given seed
 sequencer = ghalton.GeneralizedHalton(2,0)
 for i in range(seed+1):
     print("sequencer i: ", i)
     points = sequencer.get(n_patches)
     
 n_iter=seed
-titles = str(n_iter)+"_iter_"+str(n_patches)+"_patches"
 
-#############################
-# HALTON POINTS IN RANGE OF IMAGE SIZE 
-
+# Halton points in the range of image size
 #Se generan tantos Halton points como numero de patches
 #Recorro todos los halton points para sacar su primera y segunda
 # coordenada y los almaceno en una lista
-l1=[]
-l2=[]
 the_list = [None] * n_patches
 for i in range(n_patches):
     a= int(points[i][0]*image_size)
     b= int(points[i][1]*image_size)
-    l1.append(a)
-    l2.append(b)
     the_list[i] = [a,b]
-###########################
-# READING IMAGE AND SAVING
-# IMAGES WITH PATCHES
+
+
+# Reading image and saving new image with patches.
 image=plt.imread(imgDir + args.image)
 patch_width = size*2 + 1
 patch_height = size*2 + 1
-
 write_sub_im(image, the_list, output_dir, n_patches, seed, patch_width, patch_height, "red", "im")
 write_sub_im(mask_im, the_list, output_dir, n_patches, seed, patch_width, patch_height, "red", channel_name + "_mask")
 
-##########################
-# HALTON POINTS WITH LINEAL INDICES
+# 2D Halton points are transformed to lineal indices 
 the_center = indexFromMat2Lineal(the_list, image_size)       
-print("the_center", the_center)
 mem_estim = np.zeros(len(the_center))
 mem_gs = np.zeros(len(the_center))
-f1_mat = np.zeros(len(the_center))
 
-###########################
-# COUNTING ESTIMATED PIXELS AND
-# GOLD STANDAR PIXELS PER PATCH
+# Counting estimated pixels and gold standard pixles per patch
 for idx, j in enumerate(the_center):
     # Getting neighbors of the lineal index
-    the_neigh =  get_neighbors_index(j, big_im.shape[0:2], size)
+    the_neigh =  get_neighbors_index(j, big_im_shape[0:2], size)
     n_neigh = len(the_neigh)
-    count = 0 # contador para estimado
+    count = 0 # contador para estimados
     count_mask = 0 # contador para gold standard
     # Getting the label of each pixel of "the_neigh"
     # and the amount of "mem pixels" (according y channel)
     for i,tn in enumerate(the_neigh):
         if channel_mask[tn]:
             count = count + 1
-    # If the amount of "mem pixels" is more than 3.5% of the neighborhood,
-    # then the patch is selected
         if big_target_vector[tn]:
             count_mask = count_mask + 1
     mem_estim[idx] = count
     mem_gs[idx] = count_mask
 
 #########################
+#Hasta aca la revision
 # FILTERING ACCORDING Y CHANNEL THRESHOLD
 new_center = []
 new_list = []
@@ -183,7 +166,7 @@ gs_number = []
 idx_sel = []
 for idx, j in enumerate(the_center):
     # Getting neighbors of the lineal index
-    the_neigh =  get_neighbors_index(j, big_im.shape[0:2], size)
+    the_neigh =  get_neighbors_index(j, big_im_shape[0:2], size)
     n_neigh = len(the_neigh)
     count = 0
     count_mask = 0
@@ -238,7 +221,7 @@ pixels_idx = np.array([])
 
 if new_n_patches >= k_patches:
 	for i, idx in enumerate(y_max_idx[-k_patches:]):
-		random_index = get_neighbors_index(the_center[idx], big_im.shape[0:2], size)
+		random_index = get_neighbors_index(the_center[idx], big_im_shape[0:2], size)
 		pixels_idx = np.append(pixels_idx,random_index)
 		X_list[i] = big_scaled_feat_matrix[random_index,:]
 		y_list[i] = big_target_vector[random_index]
@@ -281,7 +264,7 @@ if new_n_patches >= k_patches:
 
 	if n_class_1 < n_min_class_1:
 		print("Extending patches ...")
-		extended_patches = get_neighbors_index(sel_centers, big_im.shape[0:2], new_size)
+		extended_patches = get_neighbors_index(sel_centers, big_im_shape[0:2], new_size)
 		final_patches = big_scaled_feat_matrix[extended_patches,:]
 		print("final_patches.shape", final_patches.shape)
 		final_target = big_target_vector[extended_patches]

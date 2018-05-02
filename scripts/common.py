@@ -95,8 +95,6 @@ def write_sub_im(im, coordinates, out_dir, n_patches, seed, patch_width, patch_h
     
     if len(im.shape) == 2:
         im=img_as_ubyte(im)
-        print("yes")
-        print(im[:10,:10])
         
     for c, center in enumerate(coordinates):
         patch_position = center
