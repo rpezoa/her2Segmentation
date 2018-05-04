@@ -1,8 +1,14 @@
 seeds="0 1 2 3 4 5 6 7 8 9"
-im=2+_1
-feat="2+_1_rpr"
-type_im=2+
 kpatches=5
+
+#im=2+_1
+#feat="2+_1_rpr"
+#type_im=2+
+
+im=$1
+feat=$2
+type_im=$3
+
 
 data_dir="/home/rpezoa/experiment_data/"
 out_dir="output/${feat}_random_patches/"
