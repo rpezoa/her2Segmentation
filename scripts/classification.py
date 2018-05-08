@@ -100,7 +100,7 @@ print(ny)
 if under_sampling == 1:
 # Here, it is the undersampling
     current_X, current_y = training_data(current_X, current_y,ny,ny )
-
+    print("Features vectors undersampled")
 n_mem_train = current_y.sum()
 print("current_X.shape",current_X.shape)
 print("curret_y.shape", current_y.shape)
