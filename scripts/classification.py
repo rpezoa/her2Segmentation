@@ -28,8 +28,9 @@ parser.add_argument('input_path', help='Directory of features')
 parser.add_argument('output_path', help='Directory to save results' )
 parser.add_argument('image',help='Image name without extension')
 parser.add_argument('-score','--score', help="SVM Performance Score")
-parser.add_argument('-is','--image_size', help="Image size (square image)", type=int)
 parser.add_argument('-btp','--big_target_path', help="Big Target Path")
+parser.add_argument('-is','--image_size', help="Image size (square image)", type=int)
+parser.add_argument('-us','--under_sampling', help="Undersampling", type=int)
 parser.add_argument('-tp','--target_path', help="Target Path")
 parser.add_argument('-feat_path', '--features_path', help="Feature Path")
 parser.add_argument('-bp', '--big_path', help="Big scaled feature Path")
@@ -41,6 +42,7 @@ args.input_path = args.input_path + '/' if args.input_path[-1] != '/' else args.
 args.output_path = args.output_path + '/' if args.output_path[-1] != '/' else args.output_path
 
 seed = int(args.seed)
+under_sampling = int(args.under_sampling)
 if args.image_size:
     im_size = args.image_size
 if args.features_path:
@@ -53,6 +55,7 @@ if args.big_target_path:
     big_target_path = args.big_target_path
 if args.classifier:
     c = args.classifier
+
 
 print ("Directory of Data: %s" % args.input_path )
 print ("Output Directory: %s" % args.output_path)
@@ -93,11 +96,10 @@ current_y = np.load(target_path)
 
 nX,ny= current_y.sum(), current_y.sum()
 print(ny)
+
+if under_sampling == 1:
 # Here, it is the undersampling
-current_X, current_y = training_data(current_X, current_y,ny,ny )
-
-
-
+    current_X, current_y = training_data(current_X, current_y,ny,ny )
 
 n_mem_train = current_y.sum()
 print("current_X.shape",current_X.shape)
