@@ -4,7 +4,9 @@ seeds="0"
 im=2+_8
 feat="2+_8_rpr"
 type_im=2+
-clf="xgboost"
+clf="svm"
+under_sampling="1"
+cluster=1
 
 #im=${1}
 #feat=${2}
@@ -19,13 +21,14 @@ bt_path=${data_dir}big_${type_im}/labels/${im}.npy
 f_path=${data_dir}${out_dir}feat_vectors/
 t_path=${data_dir}${out_dir}target_vectors/
 
-echo ${data_dir}${sub_dir_out}
+
+module load Lmod/6.5
+source $LMOD_PROFILE
+ml intel/2017a Python/3.6.2
+
+
 for s in $seeds;do
-
-module load python/3.5.2
-
-python3 ../scripts/classification.py ${data_dir}/big_${type_im}/ ${data_dir}${out_dir}${clf} ${im}.tif  --seed ${s}  -is 1000 -bp ${b_path}  -btp ${bt_path} -tp ${t_path}${s}.npy -feat_path ${f_path}${s}.npy -clf ${clf}
-
+	python3 ../scripts/classification.py ${data_dir}/big_${type_im}/ ${data_dir}${out_dir}${clf}_${under_sampling} ${im}.tif  --seed ${s}  -is 1000 -bp ${b_path}  -btp ${bt_path} -tp ${t_path}${s}.npy -feat_path ${f_path}${s}.npy -clf ${clf} -us ${under_sampling} --cluster ${cluster}
 done
 
 ~             
