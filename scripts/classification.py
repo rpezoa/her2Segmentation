@@ -5,7 +5,7 @@ sys.path.append('/home/rpezoa/svm/')
 #warnings.filterwarnings('ignore')
 import numpy as np
 import time
-from data import under_sampling
+from data import under_sampling as under_s
 import argparse
 
 import random as rd
@@ -98,7 +98,7 @@ print(ny)
 
 if under_sampling == 1:
 # Here, it is the undersampling
-    current_X, current_y = under_sampling(current_X, current_y,ny,ny )
+    current_X, current_y = under_s(current_X, current_y,ny,ny )
     print("Features vectors undersampled")
 n_mem_train = current_y.sum()
 print("current_X.shape",current_X.shape)
