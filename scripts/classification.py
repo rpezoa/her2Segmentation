@@ -6,7 +6,6 @@ sys.path.append('/home/rpezoa/svm/')
 import numpy as np
 import time
 from data import under_sampling
-from sklearn.externals import joblib
 import argparse
 
 import random as rd
