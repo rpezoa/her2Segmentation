@@ -65,8 +65,7 @@ baseDir = args.input_path
 imgDir =  baseDir + 'img/'
 maskDir = baseDir + 'masks/'
 featDir = baseDir + 'features/'
-baseOutDir = baseDir + 'results/'
-out_dir= args.output_path
+out_dir = args.output_path 
 
 image_name = args.image.split('.')[0]
 print ("Feature Set Directory: %s" % args.input_path )
