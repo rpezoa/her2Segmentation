@@ -11,6 +11,7 @@ feat=${2}
 type_im=${3}
 clf=${4}
 under_sampling=${5}
+cluster=${6}
 
 data_dir=/home/rpezoa/experiment_data/
 #out_dir=output/${feat}_halton_patches/
@@ -22,7 +23,7 @@ t_path=${data_dir}${out_dir}target_vectors/
 
 for s in $seeds;do
 
-python3 classification.py ${data_dir}/big_${type_im}/ ${data_dir}${out_dir}${clf}_${under_sampling} ${im}.tif  --seed ${s}  -is 1000 -bp ${b_path}  -btp ${bt_path} -tp ${t_path}${s}.npy -feat_path ${f_path}${s}.npy -clf ${clf} -us ${under_sampling}
+python3 classification.py ${data_dir}/big_${type_im}/ ${data_dir}${out_dir}${clf}_${under_sampling} ${im}.tif  --seed ${s}  -is 1000 -bp ${b_path}  -btp ${bt_path} -tp ${t_path}${s}.npy -feat_path ${f_path}${s}.npy -clf ${clf} -us ${under_sampling} --cluster ${cluster}
 
 done
 

@@ -5,8 +5,7 @@ sys.path.append('/home/rpezoa/svm/')
 #warnings.filterwarnings('ignore')
 import numpy as np
 import time
-from common import training_data
-from matplotlib import pyplot as plt
+from data import under_sampling
 from sklearn.externals import joblib
 import argparse
 
@@ -32,8 +31,9 @@ parser.add_argument('-btp','--big_target_path', help="Big Target Path")
 parser.add_argument('-is','--image_size', help="Image size (square image)", type=int)
 parser.add_argument('-us','--under_sampling', help="Undersampling", type=int)
 parser.add_argument('-tp','--target_path', help="Target Path")
-parser.add_argument('-feat_path', '--features_path', help="Feature Path")
 parser.add_argument('-bp', '--big_path', help="Big scaled feature Path")
+parser.add_argument('-feat_path', '--features_path', help="Feature Path")
+parser.add_argument('-cluster', '--cluster', help="Cluster flag")
 parser.add_argument('-seed','--seed', help="Seed", type=int)
 parser.add_argument('-clf','--classifier', help="Seed")
 args = parser.parse_args()
@@ -55,7 +55,8 @@ if args.big_target_path:
     big_target_path = args.big_target_path
 if args.classifier:
     c = args.classifier
-
+if args.cluster:
+    cluster = args.cluster
 
 print ("Directory of Data: %s" % args.input_path )
 print ("Output Directory: %s" % args.output_path)
@@ -98,7 +99,7 @@ print(ny)
 
 if under_sampling == 1:
 # Here, it is the undersampling
-    current_X, current_y = training_data(current_X, current_y,ny,ny )
+    current_X, current_y = under_sampling(current_X, current_y,ny,ny )
     print("Features vectors undersampled")
 n_mem_train = current_y.sum()
 print("current_X.shape",current_X.shape)
@@ -140,7 +141,7 @@ def deep_l(X,y):
     clf.add(Dense(output_dim = 1, init = 'uniform', activation = 'sigmoid'))
     # https://datascience.stackexchange.com/questions/13746/how-to-define-a-custom-performance-metric-in-keras
     clf.compile(optimizer = 'adam', loss = 'binary_crossentropy', metrics = ['accuracy'])
-    clf.fit(x_train, y_train, batch_size = 10, nb_epoch = 1000)
+    clf.fit(x_train, y_train, batch_size = 10, nb_epoch = 10)
     pred_big_im = clf.predict(big_scaled_feat_matrix)
     pred_big_im = (pred_big_im > 0.5)
     return pred_big_im, pred_big_im, pred_big_im
@@ -228,7 +229,11 @@ if c_n_mem_pixels > 3:
     print("rec", recall_score(big_target_vector, pred_big_im))
     print("prec", precision_score(big_target_vector, pred_big_im))
     print("roc", roc_auc_score(big_target_vector, pred_big_im))
-    plt.imsave(out_dir + "big_pred_seed_"+ str(seed) + ".png", np.reshape(pred_big_im, (im_size,im_size)), cmap="gray")
+    if cluster ==0:
+        from matplotlib import pyplot as plt
+        plt.imsave(out_dir + "big_pred_seed_"+ str(seed) + ".png", np.reshape(pred_big_im, (im_size,im_size)), cmap="gray")
+    else:
+        print("Predictions are NOT saved as images, running on a cluster")
 
 else:
     print("Not enough membrane pixels for SVM training:", c_n_mem_pixels)
