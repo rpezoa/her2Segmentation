@@ -1,3 +1,4 @@
 data/
 scripts/__pycache__/
 notebooks/.ipynb_checkpoints/
+leftraru/logs/
