@@ -15,6 +15,9 @@ clf=$3
 s=$4
 type_training_data=$5
 feat=$6
+under_sampling=$7
+cluster=$8
+local_rw=$9
 
 data_dir=/home/rpezoa/ihc/experiment_data/
 out_dir=output/${im}_${feat}_${type_training_data}/
@@ -27,6 +30,6 @@ t_path=${data_dir}${out_dir}target_vectors/
 
 module load python/3.5.2
 
-python3 ../scripts/classification.py ${data_dir}/big_${type_im}/ ${data_dir}${out_dir}${clf} ${im}.tif  --seed ${s}  -is 1000 -bp ${b_path}  -btp ${bt_path} -tp ${t_path}${s}.npy -feat_path ${f_path}${s}.npy -clf ${clf}
+python3 ../scripts/classification.py ${data_dir}/big_${type_im}/ ${data_dir}${out_dir}${clf}_${under_sampling} ${im}.tif  --seed ${s}  -is 1000 -bp ${b_path}  -btp ${bt_path} -tp ${t_path}${s}.npy -feat_path ${f_path}${s}.npy -clf ${clf} -us ${under_sampling} --cluster ${cluster} --local_rw ${local_rw}
 
 
