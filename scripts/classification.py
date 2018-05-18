@@ -7,6 +7,7 @@ import numpy as np
 import time
 from data import under_sampling as under_s
 import argparse
+from shutil import copyfile
 
 import random as rd
 from sklearn.grid_search import GridSearchCV
@@ -34,7 +35,8 @@ parser.add_argument('-bp', '--big_path', help="Big scaled feature Path")
 parser.add_argument('-feat_path', '--features_path', help="Feature Path")
 parser.add_argument('-cluster', '--cluster', help="Cluster flag")
 parser.add_argument('-seed','--seed', help="Seed", type=int)
-parser.add_argument('-clf','--classifier', help="Seed")
+parser.add_argument('-clf','--classifier', help="Classifier")
+parser.add_argument('-lrw','--local_rw', help="Local read-write", type=int)
 args = parser.parse_args()
 
 args.input_path = args.input_path + '/' if args.input_path[-1] != '/' else args.input_path
@@ -56,7 +58,8 @@ if args.classifier:
     c = args.classifier
 if args.cluster:
     cluster = args.cluster
-
+if args.local_rw:
+    local_rw = args.local_rw
 print ("Directory of Data: %s" % args.input_path )
 print ("Output Directory: %s" % args.output_path)
 print ("Image to Process: %s" % args.image )
@@ -71,10 +74,32 @@ image_name = args.image.split('.')[0]
 print ("Feature Set Directory: %s" % args.input_path )
 im_name =  args.image
 
+def get_data(local_path, ext_path):
+    if not os.path.exists(local_path + ext_path):
+        print("Copying data to tmp", ext_path, "::::::",local_path + ext_path)
+        new_dir = local_path + ext_path
+        new_dir = new_dir.split("/")[0:-1]
+        new_dir = "/".join(new_dir)
+        os.makedirs(new_dir)
+        copyfile(ext_path, local_path + ext_path)
+    data = np.load(local_path + ext_path)
+    return data
+        
+print("\n" + "%"*20 +" Seed: " +str(seed) + "%"*20 )
+local_path = "/tmp/"
+if local_rw == 1: #reading/writing local in /tmp
+    big_scaled_feat_matrix = get_data(local_path,big_path)
+    big_target_vector = get_data(local_path,big_target_path)
+    current_X = get_data(local_path,feat_path)
+    current_y = get_data(local_path,target_path)
+else:
+    big_scaled_feat_matrix = np.load(big_path)
+    big_target_vector = np.load(big_target_path)
+    current_X = np.load(feat_path)
+    current_y = np.load(target_path)
+
 if not os.path.exists(out_dir):
     os.makedirs(out_dir)
-print("Saving files in: ", out_dir)
-
 if not os.path.exists(out_dir + "/big_pred"):
     os.makedirs(out_dir + "big_pred")
 if not os.path.exists(out_dir + "/pixels_pred"):
@@ -86,15 +111,9 @@ if not os.path.exists(out_dir + "/cm"):
 if not os.path.exists(out_dir + "/big_prob"):
     os.makedirs(out_dir + "big_prob")
 
-print("\n" + "%"*20 +" Seed: " +str(seed) + "%"*20 )
-big_scaled_feat_matrix = np.load(big_path)
-big_target_vector = np.load(big_target_path)
-
-current_X = np.load(feat_path)
-current_y = np.load(target_path)
-
 nX,ny= current_y.sum(), current_y.sum()
 print(ny)
+
 
 if under_sampling == 1:
 # Here, it is the undersampling
@@ -103,7 +122,6 @@ if under_sampling == 1:
 n_mem_train = current_y.sum()
 print("current_X.shape",current_X.shape)
 print("curret_y.shape", current_y.shape)
-np.save(out_dir + "n_mem_train_seed_" + str(seed) + "_" + str(n_mem_train), n_mem_train)
 c_n_mem_pixels = (current_y==1).sum()
 
 print('Current mem pixels: ', c_n_mem_pixels)
@@ -214,10 +232,10 @@ if c_n_mem_pixels > 3:
     elif c == "extra_trees":
         pred_vector, pred_big_im, prob_big_im = extra_trees(x_train,y_train, big_scaled_feat_matrix)
 
-
-
     
     # Generating predictions and saving the predictions
+    print("Saving files in: ", out_dir)
+    np.save(out_dir + "n_mem_train_seed_" + str(seed) + "_" + str(n_mem_train), n_mem_train)
     np.save(out_dir+"big_pred/"+ str(seed) +"_big_pred.npy", pred_big_im)
     np.save(out_dir+"pixels_pred/"+str(seed) +"_pixels_pred.npy", pred_vector)
     np.save(out_dir+"big_prob/"+ str(seed) +"_big_prob.npy", prob_big_im)
@@ -235,4 +253,4 @@ if c_n_mem_pixels > 3:
         print("Predictions are NOT saved as images, running on a cluster")
 
 else:
-    print("Not enough membrane pixels for SVM training:", c_n_mem_pixels)
+    print("Not enough membrane pixels for training:", c_n_mem_pixels)
