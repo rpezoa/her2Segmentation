@@ -158,7 +158,7 @@ def deep_l(X,y):
     clf.add(Dense(output_dim = 1, init = 'uniform', activation = 'sigmoid'))
     # https://datascience.stackexchange.com/questions/13746/how-to-define-a-custom-performance-metric-in-keras
     clf.compile(optimizer = 'adam', loss = 'binary_crossentropy', metrics = ['accuracy'])
-    clf.fit(x_train, y_train, batch_size = 10, nb_epoch = 10)
+    clf.fit(x_train, y_train, batch_size = 10, nb_epoch = 1000)
     pred_big_im = clf.predict(big_scaled_feat_matrix)
     pred_big_im = (pred_big_im > 0.5)
     return pred_big_im, pred_big_im, pred_big_im
