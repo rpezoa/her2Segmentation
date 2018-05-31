@@ -15,6 +15,14 @@ from sklearn.svm import SVC
 from sklearn.cross_validation import train_test_split
 from sklearn.metrics import (recall_score,  precision_score, f1_score, roc_auc_score, 
                              make_scorer, confusion_matrix)
+import keras
+from keras.models import Sequential
+from keras.layers import Dense
+from keras import metrics
+from keras.wrappers.scikit_learn import KerasClassifier
+
+from sklearn.neighbors import KNeighborsClassifier
+
 from config_A import *
 
 ################################################################################
@@ -144,23 +152,42 @@ def svm_c(X,y,big_X):
     pred_big_im = best_estimator.predict(big_X)
     prob_big_im = best_estimator.predict_proba(big_X)
     return pred_vector, pred_big_im, prob_big_im
+
+
+
+def create_model():
+    activation="relu"
+    init_mode = "uniform"
+    model = Sequential()
+    model.add(Dense(units = 8,  kernel_initializer="uniform", activation="relu", input_dim=40))
+    model.add(Dense(units = 1, kernel_initializer = 'uniform', activation = 'sigmoid'))
+    model.compile(optimizer = 'adam', loss = 'binary_crossentropy', metrics = ['accuracy'])
+    return model
     
-def deep_l(X,y):
-    import keras
-    from keras.models import Sequential
-    from keras.layers import Dense
-    from keras import metrics
+def deep_l(X,y,big_X):
 
     print("Deep Learning :::::: X,y", X.shape, y.shape) 
-    clf = Sequential()
-    clf.add(Dense(output_dim = 6, init = 'uniform', activation = 'relu', input_dim = 40))
-    clf.add(Dense(output_dim = 6, init = 'uniform', activation = 'relu'))
-    clf.add(Dense(output_dim = 1, init = 'uniform', activation = 'sigmoid'))
-    # https://datascience.stackexchange.com/questions/13746/how-to-define-a-custom-performance-metric-in-keras
-    clf.compile(optimizer = 'adam', loss = 'binary_crossentropy', metrics = ['accuracy'])
-    clf.fit(x_train, y_train, batch_size = 10, nb_epoch = 1000)
-    pred_big_im = clf.predict(big_scaled_feat_matrix)
+    #clf = Sequential()
+    #clf.add(Dense(output_dim = 6, init = 'uniform', activation = 'relu', input_dim = 40))
+    #clf.add(Dense(output_dim = 6, init = 'uniform', activation = 'relu'))
+    #clf.add(Dense(output_dim = 1, init = 'uniform', activation = 'sigmoid'))
+    ## https://datascience.stackexchange.com/questions/13746/how-to-define-a-custom-performance-metric-in-keras
+    #clf.compile(optimizer = 'adam', loss = 'binary_crossentropy', metrics = ['accuracy'])
+    t1 = time.time()
+    model = KerasClassifier(build_fn=create_model, batch_size=1000, epochs=10)
+    
+    epochs = [1,10,100,1000]
+    batch_size = [10,100,1000,]
+    param_grid = dict(epochs=epochs, batch_size=batch_size)
+    grid = GridSearchCV(estimator=model, param_grid=param_grid, n_jobs=-1, cv=5)
+    grid_result = grid.fit(x_train, y_train)
+    pred_big_im= grid_result.best_estimator_.predict(big_X)
     pred_big_im = (pred_big_im > 0.5)
+    #clf.fit(x_train, y_train, batch_size = 10, nb_epoch = 1000)
+    #pred_big_im = clf.predict(big_scaled_feat_matrix)
+    #pred_big_im = (pred_big_im > 0.5)
+    t2 = time.time()
+    print("Deep Learning time:", t2-t1)
     return pred_big_im, pred_big_im, pred_big_im
 
 def random_f(X,y,big_X):
@@ -175,16 +202,19 @@ def random_f(X,y,big_X):
     return pred_vector, pred_big_im, pred_big_im
 
 def kNN(X,y,big_X):
-    from sklearn.neighbors import KNeighborsClassifier
     print("KNN :::::: X,y", X.shape, y.shape) 
-    clf = KNeighborsClassifier()
-    print("::::::: Training with ", x_train.shape, ":::::::::::::")
     t1=time.time()
-    clf.fit(x_train, y_train)
-    t2=time.time()
+    param_grid = {'n_neighbors': np.arange(20)+1, 'weights': ['uniform', 'distance']}
+
+    knn = KNeighborsClassifier()
+    clf = GridSearchCV(knn,parameters,cv=5, scoring="accuracy")
+    print("::::::: Training with ", x_train.shape, ":::::::::::::")
+    grid_result = clf.fit(x_train, y_train)
     print("SVM fitting time:", t2-t1)
-    pred_vector = clf.predict(X)
-    pred_big_im = clf.predict(big_X)
+    pred_vector = grid_result.best_estimator_.predict(X)
+    pred_big_im = grid_result.best_estimator_.predict(big_X)
+    t2=time.time()
+    print("KNN time:", t2-t1)
     return pred_vector, pred_big_im, pred_big_im
 
 def xgboost(X,y,big_X):
@@ -222,7 +252,7 @@ if c_n_mem_pixels > 3:
     if c == "svm":
         pred_vector, pred_big_im, prob_big_im = svm_c(x_train,y_train, big_scaled_feat_matrix)
     elif c == "deep":
-        pred_vector, pred_big_im, prob_big_im  = deep_l(x_train, y_train)
+        pred_vector, pred_big_im, prob_big_im  = deep_l(x_train, y_train, big_scaled_feat_matrix)
     elif c == "rf":
         pred_vector, pred_big_im, prob_big_im = random_f(x_train,y_train, big_scaled_feat_matrix)
     elif c == "knn":
