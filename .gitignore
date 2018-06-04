@@ -1,5 +1,6 @@
 data/
 scripts/__pycache__/
+scripts/out
 notebooks/.ipynb_checkpoints/
 leftraru/logs/
 utfsm/log*
