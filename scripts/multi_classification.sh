@@ -8,9 +8,16 @@
 
 images=("1+_20" "1+_25" "2+_1" "2+_8" "2+_9" "3+_19")
 type_im=("1+" "1+" "2+" "2+" "2+" "3+")
-
-for i in `seq 0 5`;do
-	./run_classification.sh ${images[$i]} "rpr" ${type_im[$i]} "deep" 0 2 "random_patches" 2
+methods="stratified_random" #"halton_patches" # random_patches"
+#images=("1+_20")
+#type_im=("1+")
+classifiers="knn" #knn deep svm"
+for clf in $classifiers;do
+for m in $methods;do
+for i in `seq 0 4`;do
+	./run_classification.sh ${images[$i]} "rpr" ${type_im[$i]} ${clf} 0 2 $m 2
+done;
+done;
 done;
 
 

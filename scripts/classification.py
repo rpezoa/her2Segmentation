@@ -188,10 +188,10 @@ def deep_l(X,y,big_X):
     t1 = time.time()
     model = KerasClassifier(build_fn=create_model)
     
-    epochs = [1] #[10,100,1000]
-    batch_size = [5] #[10, 50, 100, 150]
+    epochs = [10,100]
+    batch_size = [10, 50, 100]
     param_grid = dict(epochs=epochs, batch_size=batch_size)
-    grid = GridSearchCV(estimator=model, param_grid=param_grid, n_jobs=-1, cv=5)
+    grid = GridSearchCV(estimator=model, param_grid=param_grid, n_jobs=-1, cv=5, verbose=2)
     grid_result = grid.fit(x_train, y_train)
     pred_big_im= grid_result.best_estimator_.predict(big_X)
     pred_big_im = (pred_big_im > 0.5)
@@ -226,7 +226,7 @@ def kNN(X,y,big_X):
     t1 = time.time()
     param_grid = {'n_neighbors': np.arange(20)+1, 'weights': ['uniform', 'distance']}
     knn = KNeighborsClassifier()
-    clf = GridSearchCV(knn,param_grid,cv=5, scoring="f1")
+    clf = GridSearchCV(knn,param_grid,cv=5, scoring="f1", n_jobs = -1, verbose=2)
     print("::::::: Training with ", x_train.shape, ":::::::::::::")
     grid_result = clf.fit(x_train, y_train)
     pred_vector = grid_result.best_estimator_.predict(X)
