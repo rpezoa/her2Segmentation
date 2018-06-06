@@ -155,16 +155,18 @@ def save_results(best_score, best_params,t,clf):
 
 def svm_c(X,y,big_X):
     print("SVM :::::: X,y", X.shape, y.shape) 
-    tuned_parameters = [{'kernel': [kernel], 'gamma': gamma_range,'C': C_range}]
-    clf = GridSearchCV(SVC(class_weight="balanced", probability=True), tuned_parameters, cv=k, scoring=score,n_jobs = -1, verbose=1)
     t1=time.time()
+    tuned_parameters = [{'kernel': [kernel], 'gamma': gamma_range,'C': C_range}]
+    clf = GridSearchCV(SVC(class_weight="balanced"), tuned_parameters, cv=k, scoring=score,n_jobs = -1, verbose=1)
     clf.fit(x_train, y_train)
-    t2=time.time()
     print("SVM fitting time:", t2-t1)
     best_estimator = clf.best_estimator_
     pred_vector = best_estimator.predict(X)
     pred_big_im = best_estimator.predict(big_X)
     prob_big_im = best_estimator.predict_proba(big_X)
+    t2=time.time()
+    t = t2 - t1
+    save_results(grid_result.best_score_, grid_result.best_params_,t,"svm")
     return pred_vector, pred_big_im, prob_big_im
 
 def create_model():
