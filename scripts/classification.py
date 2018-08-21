@@ -123,6 +123,8 @@ if not os.path.exists(out_dir + "/cm"):
     os.makedirs(out_dir + "cm")
 if not os.path.exists(out_dir + "/big_prob"):
     os.makedirs(out_dir + "big_prob")
+if not os.path.exists(out_dir + "/test_pred"):
+    os.makedirs(out_dir + "test_pred")
 if not os.path.exists(out_dir + "/params"):
     os.makedirs(out_dir + "params")
 
@@ -153,21 +155,54 @@ def save_results(best_score, best_params,t,clf):
     print("Best: %f using %s"% (best_score, best_params))
     print(clf, "time:", t)
 
-def svm_c(X,y,big_X):
+def svm_c(X,y,big_X,x_test=None):
     print("SVM :::::: X,y", X.shape, y.shape) 
     t1=time.time()
     tuned_parameters = [{'kernel': [kernel], 'gamma': gamma_range,'C': C_range}]
-    clf = GridSearchCV(SVC(class_weight="balanced"), tuned_parameters, cv=k, scoring=score,n_jobs = -1, verbose=1)
+    clf = GridSearchCV(SVC(class_weight="balanced"), tuned_parameters, cv=k, scoring=score,n_jobs = -1, verbose=0)
     clf.fit(x_train, y_train)
-    print("SVM fitting time:", t2-t1)
     best_estimator = clf.best_estimator_
     pred_vector = best_estimator.predict(X)
     pred_big_im = best_estimator.predict(big_X)
-    prob_big_im = best_estimator.predict_proba(big_X)
+    pred_test = best_estimator.predict(x_test)
     t2=time.time()
     t = t2 - t1
-    save_results(grid_result.best_score_, grid_result.best_params_,t,"svm")
-    return pred_vector, pred_big_im, prob_big_im
+    save_results(clf.best_score_, clf.best_params_,t,"svm")
+    return pred_vector, pred_big_im, pred_test
+
+from keras import backend as K
+
+def f1(y_true, y_pred):
+    def recall(y_true, y_pred):
+        """Recall metric.
+
+        Only computes a batch-wise average of recall.
+
+        Computes the recall, a metric for multi-label classification of
+        how many relevant items are selected.
+        """
+        true_positives = K.sum(K.round(K.clip(y_true * y_pred, 0, 1)))
+        possible_positives = K.sum(K.round(K.clip(y_true, 0, 1)))
+        recall = true_positives / (possible_positives + K.epsilon())
+        return recall
+
+    def precision(y_true, y_pred):
+        """Precision metric.
+
+        Only computes a batch-wise average of precision.
+
+        Computes the precision, a metric for multi-label classification of
+        how many selected items are relevant.
+        """
+        true_positives = K.sum(K.round(K.clip(y_true * y_pred, 0, 1)))
+        predicted_positives = K.sum(K.round(K.clip(y_pred, 0, 1)))
+        precision = true_positives / (predicted_positives + K.epsilon())
+        return precision
+    precision = precision(y_true, y_pred)
+    recall = recall(y_true, y_pred)
+    return 2*((precision*recall)/(precision+recall+K.epsilon()))
+
+
 
 def create_model():
     activation="relu"
@@ -175,7 +210,7 @@ def create_model():
     model = Sequential()
     model.add(Dense(units = 8,  kernel_initializer="uniform", activation="relu", input_dim=40))
     model.add(Dense(units = 1, kernel_initializer = 'uniform', activation = 'sigmoid'))
-    model.compile(optimizer = 'adam', loss = 'binary_crossentropy', metrics = ['accuracy'])
+    model.compile(optimizer = 'adam', loss = 'binary_crossentropy', metrics = [f1])
     return model
     
 def deep_l(X,y,big_X):
@@ -190,10 +225,10 @@ def deep_l(X,y,big_X):
     t1 = time.time()
     model = KerasClassifier(build_fn=create_model)
     
-    epochs = [10,100]
-    batch_size = [10, 50, 100]
+    epochs = [100]
+    batch_size = [10]
     param_grid = dict(epochs=epochs, batch_size=batch_size)
-    grid = GridSearchCV(estimator=model, param_grid=param_grid, n_jobs=-1, cv=5, verbose=2)
+    grid = GridSearchCV(estimator=model, param_grid=param_grid, n_jobs=-1, cv=5, verbose=2,scoring=score)
     grid_result = grid.fit(x_train, y_train)
     pred_big_im= grid_result.best_estimator_.predict(big_X)
     pred_big_im = (pred_big_im > 0.5)
@@ -214,7 +249,7 @@ def random_f(X,y,big_X):
     'min_samples_leaf': [2,3,4],
     'n_estimators': [5, 15, 25,35]}
     clf = RandomForestClassifier(random_state=0)
-    grid_result = GridSearchCV(estimator = clf, param_grid = param_grid, cv = 5, n_jobs = -1, verbose = 2)
+    grid_result = GridSearchCV(estimator = clf, param_grid = param_grid, cv = 5, n_jobs = -1, verbose = 10)
     grid_result.fit(x_train, y_train)
     pred_vector = grid_result.best_estimator_.predict(X)
     pred_big_im = grid_result.best_estimator_.predict(big_X)
@@ -271,19 +306,19 @@ def xgboost(X,y,big_X):
     return pred_big_im, pred_big_im,pred_big_im
 
 if c_n_mem_pixels > 3:
-    x_train, x_test, y_train, y_test = train_test_split(current_X, current_y, test_size=0.2, random_state=0)
+    x_train, x_test, y_train, y_test = train_test_split(current_X, current_y, test_size=0.5, random_state=0)
     if c == "svm":
-        pred_vector, pred_big_im, prob_big_im = svm_c(x_train,y_train, big_scaled_feat_matrix)
+        pred_vector, pred_big_im, pred_t = svm_c(x_train,y_train, big_scaled_feat_matrix, x_test)
     elif c == "deep":
-        pred_vector, pred_big_im, prob_big_im  = deep_l(x_train, y_train, big_scaled_feat_matrix)
+        pred_vector, pred_big_im, pred_t  = deep_l(x_train, y_train, big_scaled_feat_matrix)
     elif c == "rf":
-        pred_vector, pred_big_im, prob_big_im = random_f(x_train,y_train, big_scaled_feat_matrix)
+        pred_vector, pred_big_im, pred_t = random_f(x_train,y_train, big_scaled_feat_matrix)
     elif c == "knn":
-        pred_vector, pred_big_im, prob_big_im = kNN(x_train,y_train, big_scaled_feat_matrix)
+        pred_vector, pred_big_im, pred_t = kNN(x_train,y_train, big_scaled_feat_matrix)
     elif c == "xgboost":
-        pred_vector, pred_big_im, prob_big_im = xgboost(x_train, y_train, big_scaled_feat_matrix)
+        pred_vector, pred_big_im, pred_t = xgboost(x_train, y_train, big_scaled_feat_matrix)
     elif c == "extra_trees":
-        pred_vector, pred_big_im, prob_big_im = extra_trees(x_train,y_train, big_scaled_feat_matrix)
+        pred_vector, pred_big_im, pred_t = extra_trees(x_train,y_train, big_scaled_feat_matrix)
 
     
     # Generating predictions and saving the predictions
@@ -291,7 +326,7 @@ if c_n_mem_pixels > 3:
     np.save(out_dir + "n_mem_train_seed_" + str(seed) + "_" + str(n_mem_train), n_mem_train)
     np.save(out_dir+"big_pred/"+ str(seed) +"_big_pred.npy", pred_big_im)
     np.save(out_dir+"pixels_pred/"+str(seed) +"_pixels_pred.npy", pred_vector)
-    np.save(out_dir+"big_prob/"+ str(seed) +"_big_prob.npy", prob_big_im)
+    np.save(out_dir+"test_pred/"+ str(seed) +"_test_pred.npy", y_test)
     cm = confusion_matrix(big_target_vector, pred_big_im)
     np.save(out_dir + "cm/" +  str(seed) + "_cm.npy", cm)
     print(cm)
