@@ -11,6 +11,13 @@ from shutil import copyfile
 from sklearn.externals import joblib
 
 import random as rd
+np.random.seed(42)
+
+# The below is necessary for starting core Python generated random numbers
+# in a well-defined state.
+
+rd.seed(12345)
+
 from sklearn.grid_search import GridSearchCV
 from sklearn.svm import SVC
 from sklearn.cross_validation import train_test_split
@@ -19,6 +26,8 @@ from sklearn.metrics import (recall_score,  precision_score, f1_score, roc_auc_s
 import keras
 from keras.models import Sequential
 from keras.layers import Dense
+from keras.layers import Dropout
+
 from keras import metrics
 from keras.wrappers.scikit_learn import KerasClassifier
 
@@ -121,6 +130,10 @@ if not os.path.exists(out_dir + "/times"):
     os.makedirs(out_dir + "times")
 if not os.path.exists(out_dir + "/cm"):
     os.makedirs(out_dir + "cm")
+if not os.path.exists(out_dir + "/cm_train"):
+    os.makedirs(out_dir + "cm_train")
+if not os.path.exists(out_dir + "/cm_test"):
+    os.makedirs(out_dir + "cm_test")
 if not os.path.exists(out_dir + "/big_prob"):
     os.makedirs(out_dir + "big_prob")
 if not os.path.exists(out_dir + "/test_pred"):
@@ -172,12 +185,42 @@ def svm_c(X,y,big_X,x_test=None):
 
 from keras import backend as K
 
+from sklearn.metrics import average_precision_score
+
+def aver_prec(y_true,y_pred):
+    average_precision = average_precision_score(y_true, y_pred)
+    return average_precision
+
+
+def recall(y_true, y_pred):
+    """Recall metric.
+    Only computes a batch-wise average of recall.
+    Computes the recall, a metric for multi-label classification of
+    how many relevant items are selected.
+    """
+    true_positives = K.sum(K.round(K.clip(y_true * y_pred, 0, 1)))
+    possible_positives = K.sum(K.round(K.clip(y_true, 0, 1)))
+    recall = true_positives / (possible_positives + K.epsilon())
+    return recall
+
+
+def precision(y_true, y_pred):
+    """Precision metric.
+     Only computes a batch-wise average of precision.
+     Computes the precision, a metric for multi-label classification of
+    how many selected items are relevant.
+    """
+    true_positives = K.sum(K.round(K.clip(y_true * y_pred, 0, 1)))
+    predicted_positives = K.sum(K.round(K.clip(y_pred, 0, 1)))
+    precision = true_positives / (predicted_positives + K.epsilon())
+    return precision
+
+
+
 def f1(y_true, y_pred):
     def recall(y_true, y_pred):
         """Recall metric.
-
         Only computes a batch-wise average of recall.
-
         Computes the recall, a metric for multi-label classification of
         how many relevant items are selected.
         """
@@ -209,8 +252,9 @@ def create_model():
     init_mode = "uniform"
     model = Sequential()
     model.add(Dense(units = 8,  kernel_initializer="uniform", activation="relu", input_dim=40))
+    model.add(Dense(units = 8,  kernel_initializer="uniform", activation="relu", input_dim=8))
     model.add(Dense(units = 1, kernel_initializer = 'uniform', activation = 'sigmoid'))
-    model.compile(optimizer = 'adam', loss = 'binary_crossentropy', metrics = [f1])
+    model.compile(optimizer = 'adam', loss = 'binary_crossentropy', metrics = [precision])
     return model
     
 def deep_l(X,y,big_X):
@@ -225,10 +269,10 @@ def deep_l(X,y,big_X):
     t1 = time.time()
     model = KerasClassifier(build_fn=create_model)
     
-    epochs = [100]
-    batch_size = [10]
+    epochs = [1000]
+    batch_size = [350]
     param_grid = dict(epochs=epochs, batch_size=batch_size)
-    grid = GridSearchCV(estimator=model, param_grid=param_grid, n_jobs=-1, cv=5, verbose=2,scoring=score)
+    grid = GridSearchCV(estimator=model, param_grid=param_grid, n_jobs=-1, cv=2, verbose=2,scoring="precision")
     grid_result = grid.fit(x_train, y_train)
     pred_big_im= grid_result.best_estimator_.predict(big_X)
     pred_big_im = (pred_big_im > 0.5)
@@ -239,6 +283,46 @@ def deep_l(X,y,big_X):
     t = t2 - t1
     save_results(grid_result.best_score_, grid_result.best_params_,t,"Deep")
     return pred_big_im, pred_big_im, pred_big_im
+
+def ann(X,y,big_X):
+    t1 = time.time()
+    from sklearn.utils import class_weight
+    class_weights = class_weight.compute_class_weight('balanced', np.unique(y_train),y_train)
+    print("__________________------------------",class_weights)
+
+    classifier = Sequential()
+    # Adding the input layer and the first hidden layer with dropout
+    classifier.add(Dense(activation = 'relu', input_dim = 40, units = 8, kernel_initializer = 'uniform'))
+    #Randomly drops 0.1, 10% of the neurons in the layer.
+    classifier.add(Dropout(rate= 0.1))
+
+    #Adding the second hidden layer
+    classifier.add(Dense(activation = 'relu', units = 8, kernel_initializer = 'uniform'))
+    #Randomly drops 0.1, 10% of the neurons in the layer.
+    classifier.add(Dropout(rate = 0.1)) 
+
+    # Adding the output layer
+    classifier.add(Dense(activation = 'sigmoid', units = 1, kernel_initializer = 'uniform'))
+
+    # Compiling the ANN
+    classifier.compile(optimizer = 'adam', loss = 'binary_crossentropy', metrics = [f1])
+
+    # Fitting the ANN to the training set
+    classifier.fit(x_train, y_train, batch_size = 200, epochs = 100, class_weight =class_weights, shuffle=False,verbose=0)
+
+    pred_big_im = classifier.predict(big_X)
+    pred_training = classifier.predict(x_train)
+    pred_testing = classifier.predict(x_test)
+    #clf.fit(x_train, y_train, batch_size = 10, nb_epoch = 1000)
+    #pred_big_im = clf.predict(big_scaled_feat_matrix)
+    pred_big_im = (pred_big_im > 0.5)
+    pred_training = (pred_training > 0.5)
+    pred_testing = (pred_testing > 0.5)
+    t2 = time.time()
+    t = t2 - t1
+    print("Time:::::::", t)
+    return pred_training, pred_big_im, pred_testing
+
 
 def random_f(X,y,big_X):
     # https://towardsdatascience.com/hyperparameter-tuning-the-random-forest-in-python-using-scikit-learn-28d2aa77dd74
@@ -305,8 +389,20 @@ def xgboost(X,y,big_X):
     pred_big_im = bst.predict(big_X)
     return pred_big_im, pred_big_im,pred_big_im
 
+def print_metrics(s,target,prediction):
+    cm = confusion_matrix(target, prediction)
+    print("-"*10,s,"-"*10)
+    print(cm)
+    print("f1", f1_score(target,prediction))
+    print("rec", recall_score(target, prediction))
+    print("prec", precision_score(target,prediction))
+    print("roc", roc_auc_score(target,prediction))
+    return cm
+    
+
 if c_n_mem_pixels > 3:
-    x_train, x_test, y_train, y_test = train_test_split(current_X, current_y, test_size=0.5, random_state=0)
+    x_train, x_test, y_train, y_test = train_test_split(current_X, current_y, test_size=0.6, random_state=0)
+    print("*"*5, x_train.mean(), x_test.mean(), y_train.sum(), y_test.sum())
     if c == "svm":
         pred_vector, pred_big_im, pred_t = svm_c(x_train,y_train, big_scaled_feat_matrix, x_test)
     elif c == "deep":
@@ -319,6 +415,8 @@ if c_n_mem_pixels > 3:
         pred_vector, pred_big_im, pred_t = xgboost(x_train, y_train, big_scaled_feat_matrix)
     elif c == "extra_trees":
         pred_vector, pred_big_im, pred_t = extra_trees(x_train,y_train, big_scaled_feat_matrix)
+    elif c == "ann":
+        pred_vector, pred_big_im, pred_t  = ann(x_train, y_train, big_scaled_feat_matrix)
 
     
     # Generating predictions and saving the predictions
@@ -327,13 +425,17 @@ if c_n_mem_pixels > 3:
     np.save(out_dir+"big_pred/"+ str(seed) +"_big_pred.npy", pred_big_im)
     np.save(out_dir+"pixels_pred/"+str(seed) +"_pixels_pred.npy", pred_vector)
     np.save(out_dir+"test_pred/"+ str(seed) +"_test_pred.npy", y_test)
-    cm = confusion_matrix(big_target_vector, pred_big_im)
-    np.save(out_dir + "cm/" +  str(seed) + "_cm.npy", cm)
-    print(cm)
-    print("f1", f1_score(big_target_vector, pred_big_im))
-    print("rec", recall_score(big_target_vector, pred_big_im))
-    print("prec", precision_score(big_target_vector, pred_big_im))
-    print("roc", roc_auc_score(big_target_vector, pred_big_im))
+
+
+    
+    cm_big = print_metrics("Big Image",big_target_vector, pred_big_im)
+    np.save(out_dir + "cm/" +  str(seed) + "_cm.npy", cm_big)
+    cm_train = print_metrics("Training",y_train,pred_vector)
+    np.save(out_dir + "cm_train/" +  str(seed) + "_cm.npy", cm_train)
+    cm_test = print_metrics("Testing",y_test,pred_t)
+    np.save(out_dir + "cm_test/" +  str(seed) + "_cm.npy", cm_test)
+
+
     if cluster ==0:
         from matplotlib import pyplot as plt
         plt.imsave(out_dir + "big_pred_seed_"+ str(seed) + ".png", np.reshape(pred_big_im, (im_size,im_size)), cmap="gray")
