@@ -2,5 +2,9 @@ data/
 scripts/__pycache__/
 scripts/out
 notebooks/.ipynb_checkpoints/
+notebooks/*png
+notebooks/out/
 leftraru/logs/
 utfsm/log*
+scripts/error*
+scripts/out*
